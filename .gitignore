@@ -1,0 +1,5 @@
+apps/android/android.wdio.native.app.v1.0.8.apk
+apps/ios/wdiodemoapp.app
+node_modules
+allure-report/
+allure-results/

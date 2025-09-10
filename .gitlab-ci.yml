@@ -1,0 +1,42 @@
+stages:
+  - test
+
+image: node:18
+
+variables:
+  ANDROID_HOME: "/sdk"
+  PATH: "$PATH:/sdk/platform-tools:/sdk/emulator:/sdk/cmdline-tools/latest/bin:/sdk/tools:/sdk/tools/bin"
+
+before_script:
+  - apt-get update && apt-get install -y openjdk-17-jdk wget unzip libvirt-daemon-system bridge-utils qemu-kvm
+  - wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O cmdline-tools.zip
+  - mkdir -p /sdk/cmdline-tools/latest
+  - unzip -q cmdline-tools.zip -d /sdk/cmdline-tools/latest
+  - yes | sdkmanager --sdk_root=/sdk "platform-tools" "platforms;android-30" "build-tools;30.0.3" "emulator" "system-images;android-30;google_apis;x86_64"
+  - echo "no" | avdmanager create avd -n test -k "system-images;android-30;google_apis;x86_64" --device "pixel"
+  - $ANDROID_HOME/emulator/emulator -avd test -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect &
+  - |
+    for i in {1..30}; do
+      if adb shell getprop sys.boot_completed | grep -m 1 '1'; then
+        echo "Emulador iniciado!"
+        break
+      fi
+      echo "Aguardando emulador iniciar..."
+      sleep 10
+    done
+  - adb devices
+  - npm ci
+  - npm install -g appium
+  - nohup appium > appium.log 2>&1 &
+  - sleep 10
+
+test_android:
+  stage: test
+  script:
+    - npx wdio run wdio.android.conf.js
+  artifacts:
+    when: always
+    paths:
+      - allure-results/
+      - allure-report/
+    expire_in: 1 week
